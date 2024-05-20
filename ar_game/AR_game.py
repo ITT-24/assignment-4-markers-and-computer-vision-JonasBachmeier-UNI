@@ -45,6 +45,8 @@ window = pg.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT)
 # Constants
 BALL_SPEED = 10
 BALL_SIZE = 20
+SPEED_UP = 1.1
+START_SPEED = 1
 
 # calculated the center of all point and then sorts them by the angle between the center and the point
 def sort_points(points):
@@ -109,7 +111,7 @@ class Ball:
         self.side = None
         self.can_change_direction = True
         self.score = 0	
-        self.speed = 1
+        self.speed = START_SPEED
 
 
     def draw(self):
@@ -133,7 +135,7 @@ class Ball:
         self.shape.x = WINDOW_WIDTH//2
         self.shape.y = WINDOW_HEIGHT//2
         self.score = 0
-        self.speed = 1
+        self.speed = START_SPEED
         pg.shapes.Rectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, color=(255, 0, 0)).draw()
     
     def check_collision(self, player):
@@ -155,7 +157,7 @@ class Ball:
             self.dir[0] *= -1
             self.can_change_direction = False
             self.score += 1
-            self.speed *= 1.01
+            self.speed *= SPEED_UP
 
     def check_ball_side(self):
         if self.shape.x > WINDOW_WIDTH / 2:
