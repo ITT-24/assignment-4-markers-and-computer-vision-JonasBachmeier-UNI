@@ -1,18 +1,3 @@
-# Create a program called AR-game.py. The program should read out your webcam
-# image. Use a board with an AruCo marker in each corner, extract the region bet-
-# ween the markers, and transform it to a rectangle with the resolution of your
-# webcam. Keep in mind that not all webcams have the same resolution! Display
-# the extracted and warped rectangle in a pyglet application. Now, add some game
-# mechanics based on the image in the extracted rectangle. For example, players
-# could be able to use their finger to destroy targets or to move things around.
-# Score
-# (2P) The region of interest is detected, extracted, transformed, and displayed.
-# (4P) Objects (such as fingers) in the region of interest are tracked reliably and
-# interaction with game objects works.
-# (2P) Game mechanics work and (kind of) make sense.
-# (1P) Performance is ok.
-# (1P) The program does not crash.
-
 import cv2
 import cv2.aruco as aruco
 import sys
@@ -43,6 +28,8 @@ WINDOW_HEIGHT = 800
 window = pg.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT)
 
 # Constants
+KERNEL_SIZE = 5
+
 BALL_SPEED = 10
 BALL_SIZE = 20
 SPEED_UP = 1.1
@@ -75,15 +62,15 @@ def prepare_player_object(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     # smooth the image
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    blurred = cv2.GaussianBlur(gray, (KERNEL_SIZE, KERNEL_SIZE), 0)
 
 
     # threshold
     threshold = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
     #threshold = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
 
-    # perform opening and another erosion
-    kernel = np.ones((5, 5), np.uint8)
+    # perform closing and another dilation
+    kernel = np.ones((KERNEL_SIZE, KERNEL_SIZE), np.uint8)
     closing = cv2.morphologyEx(threshold, cv2.MORPH_CLOSE, kernel, iterations=2)
     dilate = cv2.dilate(closing, kernel, iterations=1)
 

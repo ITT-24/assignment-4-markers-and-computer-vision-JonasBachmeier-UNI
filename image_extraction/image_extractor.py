@@ -1,12 +1,3 @@
-# Write a program called image-extractor.py that loads and displays an image wi-
-# th OpenCV. By clicking into the displayed image, users should be able to select
-# four points. The selected region is then extracted and perspectively warped to a
-# rectangle. After all four points have been selected, the warped result should be
-# displayed. By pressing ESC, users should be able to discard the changes and start
-# over. By pressing S in the result view, the image should be saved.
-# Paths to the input file and output destination, as well as the result’s resolution
-# should be specified via command line parameters.
-
 import cv2
 import numpy as np
 import sys
@@ -42,6 +33,13 @@ def set_points(event, x, y, flags, param):
             cv2.circle(img_copy, (x, y), 5, (0, 0, 255), -1)
             cv2.imshow(WINDOW_NAME, img_copy)
 
+def sort_points(points):
+    center = [sum(point[0] for point in points)/len(points), sum(point[1] for point in points)/len(points)]
+    
+    sorted_points = sorted(points, key=lambda point: np.arctan2(point[1]-center[1], point[0]-center[0]))
+
+    return sorted_points
+
 # The order of the points are important, so the points have to be sorted first
 def transform_image(points, img):
     print(points)
@@ -63,6 +61,7 @@ def transform_image(points, img):
 
     #OR 
     # track the order of clicks and use that to determine the order somehow
+    points = sort_points(points)
 
     pts1 = np.float32(points)
     pts2 = np.float32([[0, 0], [result_width, 0], [result_width, result_height], [0, result_height]])
