@@ -7,6 +7,7 @@ WINDOW_NAME = "Image Extractor"
 # Load image
 if len(sys.argv) < 7:
     print("not enough arguments")
+    print("Usage: python image_extractor.py <image_path> <output_path> <height> <width> <result_width> <result_height>")
     sys.exit(1)
 
 img = cv2.imread(sys.argv[1])
@@ -40,27 +41,7 @@ def sort_points(points):
 
     return sorted_points
 
-# The order of the points are important, so the points have to be sorted first
 def transform_image(points, img):
-    print(points)
-
-    # point with lowest x value and lowest y value is first point
-    # point with highest x value and lowest y value is second point
-    # point with highest x value and highest y value is third point
-    # point with lowest x value and highest y value is fourth point
-
-    # OR
-    # point closest to top left is first point
-    # point closest to top right is second point
-    # point closest to bottom right is third point
-    # point closest to bottom left is fourth point
-
-    #OR
-    # get the center of the points
-    # use the angle between the center and the points to determine the order
-
-    #OR 
-    # track the order of clicks and use that to determine the order somehow
     points = sort_points(points)
 
     pts1 = np.float32(points)
