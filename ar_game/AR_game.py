@@ -7,8 +7,32 @@ import random
 
 video_id = 0
 
-if len(sys.argv) > 1:
+# Constants for difficulty
+BALL_SPEED = 10
+BALL_SIZE = 20
+ACCELERATION_INCREASE = 1.1
+START_ACCELERATION = 1
+
+if len(sys.argv) > 2:
     video_id = int(sys.argv[1])
+    difficulty = int(sys.argv[2])
+    if difficulty == 0:
+        BALL_SPEED = 8
+        BALL_SIZE = 30
+        ACCELERATION_INCREASE = 1.05
+        START_ACCELERATION = 0.5
+    elif difficulty == 1:
+        BALL_SPEED = 10
+        BALL_SIZE = 20
+        ACCELERATION_INCREASE = 1.1
+        START_ACCELERATION = 1
+    elif difficulty == 2:
+        BALL_SPEED = 12
+        BALL_SIZE = 10
+        ACCELERATION_INCREASE = 1.15
+        START_ACCELERATION = 1.5
+    else:
+        print(f"Unknown difficulty level: {difficulty}. Using default settings.")
 
 # Create a video capture object for the webcam
 cap = cv2.VideoCapture(video_id)
@@ -30,11 +54,6 @@ window = pg.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT)
 # Constants
 KERNEL_SIZE = 5
 
-BALL_SPEED = 10
-BALL_SIZE = 20
-SPEED_UP = 1.1
-START_SPEED = 1
-
 # calculated the center of all point and then sorts them by the angle between the center and the point
 def sort_points(points):
     center = [sum(point[0] for point in points)/len(points), sum(point[1] for point in points)/len(points)]
@@ -43,6 +62,7 @@ def sort_points(points):
 
     return sorted_points
 
+# uses the 4 detected markers to transform the image and flip it for the view
 def transform_image(points, img):
     sorted_points = sort_points(points)
     pts1 = np.float32(sorted_points)
@@ -58,23 +78,21 @@ def transform_image(points, img):
     return result
 
 def prepare_player_object(img):
-    # convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-    # smooth the image
+    # blur the image to remove possible noise
     blurred = cv2.GaussianBlur(gray, (KERNEL_SIZE, KERNEL_SIZE), 0)
 
-
-    # threshold
+    # apply a simple otsu threshold
     threshold = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-    #threshold = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
 
-    # perform closing and another dilation
+    # apply a closing operation to remove noise again
     kernel = np.ones((KERNEL_SIZE, KERNEL_SIZE), np.uint8)
     closing = cv2.morphologyEx(threshold, cv2.MORPH_CLOSE, kernel, iterations=2)
     dilate = cv2.dilate(closing, kernel, iterations=1)
 
     # turn image back to 3 channels
+    # to be able to distinguish between the player and the field
     dilate = cv2.cvtColor(dilate, cv2.COLOR_GRAY2RGB)
 
     return dilate
@@ -82,31 +100,28 @@ def prepare_player_object(img):
 def prepare_field(img):
 
     # create a red rectangle from top to bttom in the middle of the image with width of 1/3 of the image
+    # This is used to prevent the player from moving through the center of the image
     img[0:WINDOW_HEIGHT, WINDOW_WIDTH//3:WINDOW_WIDTH*2//3] = [255, 0, 0]
 
     return img
 
 class Ball:
     def __init__(self, x, y, radius):
-        self.x = x
-        self.y = y
-        self.radius = radius
         self.shape = pg.shapes.Circle(x, y, radius, color=(0, 0, 255))
         self.dir = [random.choice([-BALL_SPEED, BALL_SPEED]), random.choice([-BALL_SPEED, BALL_SPEED])]
         self.is_colliding = False
-        self.has_crossed = False
         self.side = None
         self.can_change_direction = True
         self.score = 0	
-        self.speed = START_SPEED
+        self.acceleration = START_ACCELERATION
 
 
     def draw(self):
         self.shape.draw()
     
     def move(self):
-        self.shape.x += int(self.dir[0] * self.speed)
-        self.shape.y += int(self.dir[1] * self.speed)
+        self.shape.x += int(self.dir[0] * self.acceleration)
+        self.shape.y += int(self.dir[1] * self.acceleration)
         if self.shape.x > WINDOW_WIDTH or self.shape.x < 0:
             self.respawn()
         if self.shape.y > WINDOW_HEIGHT or self.shape.y < 0:
@@ -122,7 +137,7 @@ class Ball:
         self.shape.x = WINDOW_WIDTH//2
         self.shape.y = WINDOW_HEIGHT//2
         self.score = 0
-        self.speed = START_SPEED
+        self.acceleration = START_ACCELERATION
         pg.shapes.Rectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, color=(255, 0, 0)).draw()
     
     def check_collision(self, player):
@@ -144,7 +159,7 @@ class Ball:
             self.dir[0] *= -1
             self.can_change_direction = False
             self.score += 1
-            self.speed *= SPEED_UP
+            self.acceleration *= ACCELERATION_INCREASE
 
     def check_ball_side(self):
         if self.shape.x > WINDOW_WIDTH / 2:
@@ -176,6 +191,9 @@ def on_draw():
         pg.text.Label(text="When the ball reaches one of the sides, the game gets reset", x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2, anchor_x='center').draw()
         
         pg.text.Label(text="Press SPACE to start or pause the game", x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2 - 50, anchor_x='center').draw()
+        
+        pg.text.Label(text="P.S.: You can change the difficulty by calling : Python AR_game.py <video_id> <difficulty>", x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2 - 250, anchor_x='center').draw()
+        pg.text.Label(text="0 - easy | 1 - normal | 2 - hard", x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2 - 280, anchor_x='center').draw()
     else:
         window.clear()
         ret, frame = cap.read()
@@ -194,14 +212,11 @@ def on_draw():
                 pg.text.Label(text=str(ids[i]), anchor_x='center', x=marker_point[0], y=marker_point[1], color=(255, 0, 0, 255)).draw()
             
             if len(ids) == 4:
-
-                # extract region of interest
                 img = transform_image(marker_points, frame)
 
                 last_sprite = pg.sprite.Sprite(pg.image.ImageData(width=WINDOW_WIDTH, height=WINDOW_HEIGHT, fmt='RGB', data=img.tobytes()))
                 last_sprite.draw()
 
-                # prepare player object
                 player = prepare_player_object(img)
                 
                 # prepare field. The field is a white rectangle in the middle of the image to deny the player to move through it
@@ -218,9 +233,7 @@ def on_draw():
                 if ball.check_collision(player):
                     ball.change_direction()
                 ball.move()
-                
-                # show score as label
-            
+                            
             pg.text.Label(text=str(ball.score), x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT-20, anchor_x='center').draw()    
             ball.draw()
 
